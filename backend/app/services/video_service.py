@@ -70,8 +70,21 @@ def get_video_metadata(path: str) -> dict:
 
 def process_video_background(video_id: uuid.UUID, db_url: str | None = None) -> None:
     """
-    Background task: adaptive keyframe extraction → embedding → DB insert.
+    Background task: adaptive keyframe extraction → embedding → graph build → DB insert.
     Designed so it can later be moved to Celery/RQ without rewriting callers.
+
+    Graph-layer integration (Phase 1)
+    ---------------------------------
+    The graph is built by ``graph_service.build_graph_for_video`` immediately
+    after the frames are committed and before ``status`` becomes ``ready``.
+    That function only adds and flushes; it never commits and never rolls back,
+    so graph rows land in this task's transaction. A failure anywhere below is
+    caught by the existing handler, which sets ``status='failed'``; because
+    ``ON DELETE CASCADE`` links edges → nodes → videos, and because the whole
+    run shares one transaction, a failed indexing can never leave a partial or
+    orphaned graph behind.
+
+    Set ``GRAPH_ENABLED=false`` to index exactly as before, with no graph rows.
     """
     from app.db.session import SessionLocal
 
@@ -95,8 +108,32 @@ def process_video_background(video_id: uuid.UUID, db_url: str | None = None) -> 
             db.commit()
             return
 
-        # Embed + store
+        # Embed + store (commits internally, per batch - unchanged behaviour)
         inserted = process_and_store_embeddings(db, video_id, video.path, retained)
+
+        # Build the relational graph from the frames just persisted. Import is
+        # local so that a graph-layer import failure cannot break frame-only
+        # indexing, matching the Celery-deferral style already used above.
+        graph_stats = None
+        if settings.GRAPH_ENABLED:
+            try:
+                from app.services.graph_service import build_graph_for_video
+
+                # No frame_images is passed: frame identity and embeddings are
+                # reloaded from the database, which is the authoritative record
+                # of what was actually indexed. A future real extractor will
+                # need PIL images, which is precisely why that hook lives in
+                # graph_service rather than here.
+                graph_stats = build_graph_for_video(db, video_id, run_extractor=True)
+                # One transaction for the whole graph.
+                db.commit()
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    f"Graph construction failed for video {video_id}; "
+                    f"rolling back graph rows and failing the video"
+                )
+                raise
 
         # Update metadata if missing
         meta = get_video_metadata(video.path)
@@ -106,11 +143,15 @@ def process_video_background(video_id: uuid.UUID, db_url: str | None = None) -> 
         video.status = "ready"
         video.error_message = None
         db.commit()
-        logger.info(f"Processing completed for video {video_id} | frames_stored={inserted}")
+        logger.info(
+            f"Processing completed for video {video_id} | frames_stored={inserted}"
+            + (f" | graph={graph_stats.as_dict()}" if graph_stats else " | graph=disabled")
+        )
 
     except Exception as e:
         logger.exception(f"Processing failed for video {video_id}: {e}")
         try:
+            db.rollback()
             video = db.query(Video).filter(Video.id == video_id).first()
             if video:
                 video.status = "failed"

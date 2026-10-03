@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { GitBranch, Layers } from "lucide-react";
 import VideoUploader from "./components/VideoUploader";
 import VideoLibrary from "./components/VideoLibrary";
 import SearchBar from "./components/SearchBar";
 import VideoPlayer from "./components/VideoPlayer";
 import SearchResults from "./components/SearchResults";
+import GraphSearchResults from "./components/GraphSearchResults";
 import TimelineHeatmap from "./components/TimelineHeatmap";
 import { getVideos, Video } from "./api";
 import { useVideoSearch } from "./hooks/useVideoSearch";
+import { useGraphSearch } from "./hooks/useGraphSearch";
+
+type SearchMode = "vector" | "graph";
 
 export default function App() {
   const [videos, setVideos] = useState<Video[]>([]);
@@ -14,7 +19,18 @@ export default function App() {
   const [seekTo, setSeekTo] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
 
-  const { results, loading, error, latency, doSearch } = useVideoSearch();
+  // Search mode is explicit rather than automatic. Both paths are available
+  // at all times so the effect of graph re-ranking can be observed directly on
+  // the same query, and so the vector-only path keeps behaving exactly as it
+  // always has.
+  const [mode, setMode] = useState<SearchMode>("vector");
+  const [graphDepth, setGraphDepth] = useState(2);
+
+  const vectorSearch = useVideoSearch();
+  const graphSearch = useGraphSearch(graphDepth);
+
+  const { results, loading, error } =
+    mode === "vector" ? vectorSearch : graphSearch;
 
   const refresh = useCallback(async () => {
     try {
@@ -41,6 +57,14 @@ export default function App() {
     setTimeout(() => setSeekTo(null), 100);
   };
 
+  const runSearch = (q: string) => {
+    if (mode === "vector") {
+      vectorSearch.doSearch(q, selectedId);
+    } else {
+      graphSearch.doSearch(q, selectedId);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -51,7 +75,7 @@ export default function App() {
               VideoCtrl-F
             </h1>
             <p className="text-xs text-slate-400">
-              Semantic Video Search · SigLIP-2 · pgvector
+              Semantic Video Search · SigLIP-2 · pgvector · Relational Graph
             </p>
           </div>
         </div>
@@ -77,10 +101,55 @@ export default function App() {
         {/* Main content */}
         <section className="lg:col-span-9 space-y-4">
           <SearchBar
-            onSearch={(q) => doSearch(q, selectedId)}
+            onSearch={runSearch}
             loading={loading}
             disabled={!selected || selected.status !== "ready"}
-          />
+          >
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg overflow-hidden border border-slate-700">
+                <button
+                  onClick={() => setMode("vector")}
+                  className={`flex items-center gap-1 px-3 py-1 text-xs transition ${
+                    mode === "vector"
+                      ? "bg-slate-700 text-slate-100"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Layers className="h-3 w-3" /> Vector only
+                </button>
+                <button
+                  onClick={() => setMode("graph")}
+                  className={`flex items-center gap-1 px-3 py-1 text-xs transition ${
+                    mode === "graph"
+                      ? "bg-brand-600 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <GitBranch className="h-3 w-3" /> Vector + Graph
+                </button>
+              </div>
+
+              {mode === "graph" && (
+                <label className="flex items-center gap-2 text-xs text-slate-400">
+                  Depth
+                  <select
+                    value={graphDepth}
+                    onChange={(e) => setGraphDepth(Number(e.target.value))}
+                    className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200"
+                  >
+                    {[0, 1, 2, 3].map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-slate-600">
+                    (0 = vector only, the evaluation baseline)
+                  </span>
+                </label>
+              )}
+            </div>
+          </SearchBar>
 
           {error && (
             <p className="text-sm text-amber-400 bg-amber-400/10 px-3 py-2 rounded-lg">
@@ -95,17 +164,30 @@ export default function App() {
           />
 
           <TimelineHeatmap
-            results={results.filter((r) => r.video_id === selectedId)}
+            results={results.map((r) => ({
+              frame_id: r.frame_id,
+              timestamp_seconds: r.timestamp_seconds,
+              score: "final_score" in r ? r.final_score : r.score,
+            }))}
             duration={selected?.duration_seconds ?? null}
             currentTime={currentTime}
             onSeek={(t) => setSeekTo(t)}
           />
 
-          <SearchResults
-            results={results}
-            latency={latency}
-            onJump={handleJump}
-          />
+          {mode === "vector" ? (
+            <SearchResults
+              results={vectorSearch.results}
+              latency={vectorSearch.latency}
+              onJump={handleJump}
+            />
+          ) : (
+            <GraphSearchResults
+              response={graphSearch.response}
+              error={graphSearch.error}
+              loading={graphSearch.loading}
+              onJump={handleJump}
+            />
+          )}
         </section>
       </main>
     </div>

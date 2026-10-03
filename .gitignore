@@ -6,6 +6,11 @@ venv/
 __pycache__/
 *.py[cod]
 
+# Node / frontend build artefacts
+node_modules/
+dist/
+*.tsbuildinfo
+
 # Environment variables
 .env
 
@@ -19,3 +24,18 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# --- Generated experiment artefacts ---
+# These are reproducible from experiments/evaluation/evaluate_retrieval.py and
+# the experiments/visualization/plot_*.py scripts. Committing them would put
+# multi-megabyte figures in history and invite stale copies being read as
+# current results. The source CSVs stay ignored; the directory itself is kept
+# via experiments/results/.gitkeep.
+experiments/results/*.csv
+experiments/results/*.json
+experiments/results/figures/
+!experiments/results/.gitkeep
+!experiments/results/README.md
+
+# Local bootstrap logs
+scripts/*.log

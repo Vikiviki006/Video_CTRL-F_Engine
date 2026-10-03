@@ -17,6 +17,16 @@ pytest==8.3.3
 pytest-asyncio==0.24.0
 aiofiles==24.1.0
 
+# --- Added by the relational graph layer + evaluation framework ---
+# Alembic: versioned, additive migrations. Required because app/db/init.sql can
+# only ever create tables on a *fresh* volume (CREATE TABLE IF NOT EXISTS cannot
+# add a table to a database that already exists), so there was previously no way
+# to evolve the schema of a running deployment.
+alembic==1.13.3
+
+# Experiment analysis and figures (experiments/visualization/plot_*.py).
+matplotlib==3.9.2
+pandas==2.2.3
 
 
 #if using cuda use  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128

@@ -1,8 +1,19 @@
 import React from "react";
-import { SearchResult } from "../api";
+
+/**
+ * The only three fields the heatmap actually reads. Declaring this narrow shape
+ * instead of reusing the full `SearchResult` lets both the plain-vector and the
+ * graph-aware result lists feed the same component, and `SearchResult` remains
+ * structurally assignable to it.
+ */
+export interface TimelineMarker {
+  frame_id: string;
+  timestamp_seconds: number;
+  score: number;
+}
 
 interface Props {
-  results: SearchResult[];
+  results: TimelineMarker[];
   duration: number | null;
   currentTime?: number;
   onSeek: (t: number) => void;

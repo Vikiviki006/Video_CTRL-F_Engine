@@ -5,9 +5,11 @@ interface Props {
   onSearch: (query: string) => void;
   loading?: boolean;
   disabled?: boolean;
+  /** Optional render slot, used to append the plain / graph mode toggle. */
+  children?: React.ReactNode;
 }
 
-export default function SearchBar({ onSearch, loading, disabled }: Props) {
+export default function SearchBar({ onSearch, loading, disabled, children }: Props) {
   const [query, setQuery] = useState("");
 
   const submit = (e: React.FormEvent) => {
@@ -46,6 +48,7 @@ export default function SearchBar({ onSearch, loading, disabled }: Props) {
           {loading ? "Searching…" : "Search"}
         </button>
       </div>
+      {children}
     </form>
   );
 }
