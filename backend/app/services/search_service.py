@@ -71,17 +71,17 @@ def search(db: Session, request: SearchRequest) -> SearchResponse:
             v.original_filename AS video_name,
             f.timestamp_seconds,
             f.thumbnail_path,
-            1 - (f.embedding <=> :emb::vector) AS score
+            1 - (f.embedding <=> CAST(:emb AS vector)) AS score
         FROM video_frames f
         JOIN videos v ON v.id = f.video_id
         WHERE v.status = 'ready'
-          AND 1 - (f.embedding <=> :emb::vector) >= :min_score
+          AND 1 - (f.embedding <=> CAST(:emb AS vector)) >= :min_score
     """
     if request.video_id:
         sql += " AND f.video_id = :video_id"
         params["video_id"] = str(request.video_id)
 
-    sql += " ORDER BY f.embedding <=> :emb::vector ASC LIMIT :limit"
+    sql += " ORDER BY f.embedding <=> CAST(:emb AS vector) ASC LIMIT :limit"
 
     rows = db.execute(text(sql), params).mappings().all()
 

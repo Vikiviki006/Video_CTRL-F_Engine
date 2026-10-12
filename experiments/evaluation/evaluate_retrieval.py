@@ -109,6 +109,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Embedding checkpoint to evaluate. Must match what was indexed.",
     )
     parser.add_argument("--top-k", type=int, default=10, help="Results per query.")
+    parser.add_argument(
+        "--min-score",
+        type=float,
+        default=-1.0,
+        help=(
+            "Candidate similarity floor, matching the API default (no floor). "
+            "SigLIP-2 cosines cluster near 0, so a 0.0 floor empties the pool "
+            "for some queries; pass 0.0 to measure that older behaviour."
+        ),
+    )
     parser.add_argument("--output", default="experiments/results/")
     parser.add_argument(
         "--graph",
@@ -207,10 +217,16 @@ def _live_condition(
     top_k: int,
     graph_depth: int,
     use_graph: bool,
+    config: Optional[RankingConfig] = None,
+    min_score: float = -1.0,
 ) -> Dict[str, Any]:
     """Run one retrieval configuration against the live database.
 
-    Returns per-query ranked lists, per-query and per-stage latencies, and the
+    ``config`` is the weight set handed to ``graph_search``: conditions A/B/C/D
+    differ *only* through it, so the published ablation measures the weights the
+    system is told to use rather than the weights in ``Settings``.
+
+    Returns per-query ranked lists, per-query and stage latencies, and the
     graph expansion observations. Every latency value comes from a real
     ``time.perf_counter`` measurement around the real stage.
     """
@@ -243,10 +259,10 @@ def _live_condition(
             video_id=query.video_id,
             top_k=top_k,
             graph_depth=depth,
-            min_score=0.0,
+            min_score=min_score,
         )
         t0 = time.perf_counter()
-        response = graph_search(db, request)
+        response = graph_search(db, request, config=config)
         elapsed = (time.perf_counter() - t0) * 1000.0
 
         per_query_ranked.append(
@@ -486,6 +502,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "model": args.model,
         "model_checkpoint": KNOWN_MODELS[args.model],
         "top_k": args.top_k,
+        "min_score": args.min_score,
         "graph_enabled": bool(args.graph),
         "graph_depth": args.graph_depth,
         "depth_sweep": list(DEPTH_SWEEP) if args.depth_sweep else None,
@@ -546,6 +563,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         try:
             # --- baseline (condition A) and graph run (condition D) --------
+            from app.services.graph_ranking_service import ablation_configs
+            from app.services.model_service import get_model_service
+
+            # Warm the model outside every measurement window. Without this,
+            # condition A absorbs the one-off model-load cost (observed: a 23 s
+            # first encode against a 0.30 s median) and the latency comparison
+            # reports a load spike as a property of the configuration.
+            get_model_service().encode_text("warm up")
+
+            configs = ablation_configs()
             conditions = ["A"] if not args.ablation else ["A", "B", "C", "D"]
             live: Dict[str, Dict[str, Any]] = {}
             for condition in conditions:
@@ -556,6 +583,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     top_k=args.top_k,
                     graph_depth=args.graph_depth if use_graph else 0,
                     use_graph=use_graph,
+                    config=configs[condition],
+                    min_score=args.min_score,
                 )
                 live[condition] = result
 
@@ -583,7 +612,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
                 if condition == "D" and args.graph:
                     graph_report = aggregate_expansions(result["expansions"])
-                    for entry in graph_report.get("by_depth", []):
+                    # --depth-sweep already writes a measured row per depth; this
+                    # expansion-only row carries no metrics, so keeping it would
+                    # duplicate depth 2 as an all-N/A row that reads like a failed
+                    # measurement in SUMMARY.md.
+                    by_depth = (
+                        [] if args.depth_sweep else graph_report.get("by_depth", [])
+                    )
+                    for entry in by_depth:
                         graph_rows.append(
                             {
                                 "depth": entry["depth"],
@@ -623,6 +659,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         top_k=args.top_k,
                         graph_depth=depth,
                         use_graph=depth > 0,
+                        config=configs["A"] if depth == 0 else configs["D"],
+                        min_score=args.min_score,
                     )
                     scorable_ids = {q.id for q in dataset.scorable}
                     idx = 0

@@ -39,3 +39,9 @@ experiments/results/figures/
 
 # Local bootstrap logs
 scripts/*.log
+
+# --- Uploaded media and derived frames ---
+# Large binaries produced by local uploads/ingestion; they live on disk (and in
+# PostgreSQL metadata), not in git history.
+backend/data/media/
+backend/data/frames/

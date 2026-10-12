@@ -42,7 +42,13 @@ class ModelService:
             return np.array([])
         inputs = self.processor(images=images, return_tensors="pt").to(self.device)
         with torch.no_grad():
-            emb = self.model.get_image_features(**inputs)
+            output = self.model.get_image_features(**inputs)
+
+            if hasattr(output, "pooler_output"):
+                emb = output.pooler_output
+            else:
+                emb = output
+
             emb = torch.nn.functional.normalize(emb, p=2, dim=-1)
         return emb.cpu().numpy()
 
@@ -52,7 +58,13 @@ class ModelService:
             texts = [texts]
         inputs = self.processor(text=texts, return_tensors="pt", padding=True).to(self.device)
         with torch.no_grad():
-            emb = self.model.get_text_features(**inputs)
+            output = self.model.get_text_features(**inputs)
+
+            if hasattr(output, "pooler_output"):
+                emb = output.pooler_output
+            else:
+                emb = output
+
             emb = torch.nn.functional.normalize(emb, p=2, dim=-1)
         return emb.cpu().numpy()
 

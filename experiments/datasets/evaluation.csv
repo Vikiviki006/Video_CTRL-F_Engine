@@ -1,6 +1,26 @@
-id,query,video_id,ground_truth_timestamp,tolerance_seconds,relevant_ids,relevant_relationships,notes
-q1,person wearing a yellow jacket,,,2.0,,,"TODO: needs a real video_id and the second at which this actually appears"
-q2,person walking past a red car,,,2.0,,,"TODO: needs a real video_id and timestamp"
-q3,speaker drawing a diagram on a whiteboard,,,2.0,,,"TODO: needs a real video_id and timestamp"
-q4,a presentation slide showing a bar chart,,,2.0,,,"TODO: needs a real video_id and timestamp"
-q5,person writing mathematical equations,,,2.0,,,"TODO: needs a real video_id and timestamp"
+id,query,video_id,ground_truth_timestamps,tolerance_seconds,relevant_ids,relevant_relationships,notes
+q1,a closed red flower bud among green leaves,a518e791-3974-48cb-802d-2758c4c26e78,[0.0],2.0,,,annotated 0.5s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.50s)
+q2,an open red flower showing yellow stamens,a518e791-3974-48cb-802d-2758c4c26e78,[2.803],2.0,,,annotated 4.0s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 1.20s)
+q3,a person walking on a red brick pavement,be6c6a79-9e93-44d7-8cc5-2874ce9cd30b,"[0.0, 0.52, 1.04, 1.56, 2.08, 2.6, 3.12, 3.64]",2.0,,,annotated 2.0s; 8 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.08s)
+q4,long shadows cast across a brick sidewalk,be6c6a79-9e93-44d7-8cc5-2874ce9cd30b,"[4.68, 5.2, 5.72, 6.24, 6.76, 7.28, 7.8, 8.32]",2.0,,,annotated 6.5s; 8 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.26s)
+q5,students sitting at a desk in a classroom,d3ed05a9-36db-472b-be10-79dd0d511656,[5.6],2.0,,,annotated 5.0s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.60s)
+q6,a dark blackboard on the classroom wall,d3ed05a9-36db-472b-be10-79dd0d511656,[13.72],2.0,,,annotated 13.0s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.72s)
+q7,a person walking a large group of dogs on leashes,bc665aa7-55a3-4022-97a9-de110830e44a,"[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]",2.0,,,annotated 3.0s; 9 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.00s)
+q8,tall city buildings behind the dog walker,bc665aa7-55a3-4022-97a9-de110830e44a,"[4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0]",2.0,,,annotated 6.5s; 8 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.00s)
+q9,the Testify dashboard with an orange logo,7778dd4b-c53c-4bc9-b12e-87be2a165444,[0.0],2.0,,,annotated 0.5s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.50s)
+q10,a Selenium Code Generator form with dropdown fields,7778dd4b-c53c-4bc9-b12e-87be2a165444,"[6.0, 9.0]",2.0,,,annotated 7.0s; 2 keyframe(s) within +/-2.0s of annotated moment (nearest gap 1.00s)
+q11,a light blue popup window on screen,7778dd4b-c53c-4bc9-b12e-87be2a165444,[21.0],2.0,,,annotated 21.8s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.80s)
+q12,a code editor filled with syntax highlighted code,7778dd4b-c53c-4bc9-b12e-87be2a165444,"[38.1, 41.1]",2.0,,,annotated 40.0s; 2 keyframe(s) within +/-2.0s of annotated moment (nearest gap 1.10s)
+q13,a loading spinner in the middle of the page,7778dd4b-c53c-4bc9-b12e-87be2a165444,[56.7],2.0,,,annotated 57.0s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.30s)
+q14,a long documentation page with paragraphs of text,7778dd4b-c53c-4bc9-b12e-87be2a165444,[87.833],2.0,,,annotated 87.0s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.83s)
+q15,the calculator display showing 7 plus 3 equals 10,07795017-9760-4f12-8186-6a840558eeb1,[3.0],2.0,,,annotated 3.5s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.50s)
+q16,the calculator showing 40 divided by 5 equals 8,07795017-9760-4f12-8186-6a840558eeb1,[18.0],2.0,,,annotated 17.5s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.50s)
+q17,Math.sqrt(7) typed into the calculator,07795017-9760-4f12-8186-6a840558eeb1,"[21.0, 24.0]",2.0,,,annotated 23.0s; 2 keyframe(s) within +/-2.0s of annotated moment (nearest gap 1.00s)
+q18,the result 2.6457513110645907 on the calculator,07795017-9760-4f12-8186-6a840558eeb1,[27.0],2.0,,,annotated 26.5s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.50s)
+q19,one divided by nine showing 0.1111111111111111,07795017-9760-4f12-8186-6a840558eeb1,[36.0],2.0,,,annotated 35.5s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.50s)
+q20,5 squared equals 25 on the calculator,07795017-9760-4f12-8186-6a840558eeb1,"[45.0, 48.0]",2.0,,,annotated 46.5s; 2 keyframe(s) within +/-2.0s of annotated moment (nearest gap 1.50s)
+q21,a Gemini API key panel with an orange continue button,a19c1351-3459-4d1c-ad9b-d14e4808b368,"[0.0, 3.0, 3.5]",2.0,,,annotated 1.5s; 3 keyframe(s) within +/-2.0s of annotated moment (nearest gap 1.50s)
+q22,a white save-password dialog over a dark interface,a19c1351-3459-4d1c-ad9b-d14e4808b368,"[3.0, 3.5, 6.5]",2.0,,,annotated 4.5s; 3 keyframe(s) within +/-2.0s of annotated moment (nearest gap 1.00s)
+q23,an Explain text input with an orange Ask button,a19c1351-3459-4d1c-ad9b-d14e4808b368,"[33.5, 36.5]",2.0,,,annotated 35.0s; 2 keyframe(s) within +/-2.0s of annotated moment (nearest gap 1.50s)
+q24,a long block of AI text explaining a repository,a19c1351-3459-4d1c-ad9b-d14e4808b368,[51.5],2.0,,,annotated 52.0s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.50s)
+q25,a Dependency Impact panel with an orange Analyze button,a19c1351-3459-4d1c-ad9b-d14e4808b368,[72.5],2.0,,,annotated 72.0s; 1 keyframe(s) within +/-2.0s of annotated moment (nearest gap 0.50s)

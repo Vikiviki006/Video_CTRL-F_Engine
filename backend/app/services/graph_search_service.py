@@ -61,16 +61,16 @@ _CANDIDATE_SQL = """
         v.original_filename AS video_name,
         f.timestamp_seconds,
         f.thumbnail_path,
-        1 - (f.embedding <=> :emb::vector) AS vector_score
+        1 - (f.embedding <=> CAST(:emb AS vector)) AS vector_score
     FROM video_frames f
     JOIN videos v ON v.id = f.video_id
     WHERE v.status = 'ready'
-      AND 1 - (f.embedding <=> :emb::vector) >= :min_score
+      AND 1 - (f.embedding <=> CAST(:emb AS vector)) >= :min_score
       AND f.embedding IS NOT NULL
 """
 
 _CANDIDATE_TAIL = """
-    ORDER BY f.embedding <=> :emb::vector ASC
+    ORDER BY f.embedding <=> CAST(:emb AS vector) ASC
     LIMIT :limit
 """
 

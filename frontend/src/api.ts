@@ -186,7 +186,7 @@ export async function search(
     query,
     video_id: videoId || null,
     top_k: topK,
-    min_score: 0.0,
+    min_score: -1.0,
   });
   return res.data;
 }
@@ -207,7 +207,7 @@ export async function searchGraph(
     video_id: videoId || null,
     top_k: topK,
     graph_depth: graphDepth,
-    min_score: 0.0,
+    min_score: -1.0,
   });
   return res.data;
 }
