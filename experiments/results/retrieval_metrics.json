@@ -1,0 +1,46 @@
+{
+  "rows": [
+    {
+      "condition": "D",
+      "description": "vector + graph + temporal (production)",
+      "hitrate@1": 0.24,
+      "hitrate@10": 0.72,
+      "hitrate@5": 0.52,
+      "map": 0.35506944444444444,
+      "metrics_reason": null,
+      "metrics_status": "measured",
+      "mrr": 0.37,
+      "ndcg@1": 0.24,
+      "ndcg@10": 0.44630100571170916,
+      "ndcg@20": 0.44630100571170916,
+      "ndcg@5": 0.3555438074572286,
+      "precision@1": 0.24,
+      "precision@10": 0.196,
+      "precision@20": 0.098,
+      "precision@5": 0.21600000000000003,
+      "recall@1": 0.11611111111111111,
+      "recall@10": 0.6794444444444444,
+      "recall@20": 0.6794444444444444,
+      "recall@5": 0.39388888888888884
+    }
+  ],
+  "run": {
+    "dataset": "experiments\\datasets\\evaluation.csv",
+    "depth_sweep": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "generated_at": "2026-10-06 07:51:12 UTC",
+    "graph_depth": 2,
+    "graph_enabled": true,
+    "metrics_status": "measured",
+    "min_score": -1.0,
+    "model": "siglip2",
+    "model_checkpoint": "google/siglip2-so400m-patch14-384",
+    "num_queries": 25,
+    "num_scorable": 25,
+    "top_k": 10
+  }
+}

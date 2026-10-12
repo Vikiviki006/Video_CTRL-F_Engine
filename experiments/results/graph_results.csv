@@ -1,0 +1,5 @@
+depth,queries,metrics_status,metrics_reason,recall@10,precision@10,ndcg@10,mrr,map,latency_avg_ms,latency_p95_ms,nodes_reached_avg,edges_traversed_avg,expansion_latency_ms_avg,nodes_reached_max,edges_traversed_max,expansion_latency_ms_p95,depth_limit_hit_queries,node_limit_hit_queries,edge_type_totals
+0,25,measured,N/A,0.666111,0.192,0.437879,0.351667,0.34999,183.343336,227.44094,0.0,0.0,0.0,N/A,N/A,N/A,N/A,N/A,N/A
+1,25,measured,N/A,0.679444,0.196,0.446301,0.37,0.355069,192.942592,228.9785,23.72,130.84,6.4248,39,171,10.124,25,0,{}
+2,25,measured,N/A,0.679444,0.196,0.446301,0.37,0.355069,198.382516,236.07408,24.76,191.48,8.2856,40,311,12.832,25,0,{}
+3,25,measured,N/A,0.679444,0.196,0.446301,0.37,0.355069,193.55598,224.20554,24.76,191.48,9.7536,40,311,18.276,25,0,{}
