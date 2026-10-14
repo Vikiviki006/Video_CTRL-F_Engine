@@ -75,6 +75,7 @@ from experiments.evaluation.metrics import (  # noqa: E402
 )
 from experiments.evaluation.ranking import (  # noqa: E402
     DEPTH_SWEEP,
+    ablation_configs,
     confidence_term_diagnostic,
     run_condition,
 )
@@ -207,19 +208,23 @@ def _live_condition(
     top_k: int,
     graph_depth: int,
     use_graph: bool,
+    config: Any = None,
 ) -> Dict[str, Any]:
     """Run one retrieval configuration against the live database.
 
     Returns per-query ranked lists, per-query and per-stage latencies, and the
     graph expansion observations. Every latency value comes from a real
     ``time.perf_counter`` measurement around the real stage.
+
+    ``config`` is the :class:`RankingConfig` for the ablation condition being
+    measured, and it MUST be forwarded to ``graph_search``. It previously was
+    not: the condition's weights were read, written into the ablation table, and
+    then never applied, so every condition actually ran with the production
+    weights while the published table claimed otherwise. Conditions therefore
+    differed only in whether expansion ran, not in how results were scored.
+    ``config=None`` keeps production behaviour for the non-ablation run.
     """
-    from app.core.config import Settings
     from app.schemas.graph import GraphSearchRequest
-    from app.services.graph_ranking_service import (
-        RankingConfig,
-        ablation_configs,
-    )
     from app.services.graph_search_service import graph_search
 
     per_query_ranked: List[List[Dict[str, Any]]] = []
@@ -246,7 +251,10 @@ def _live_condition(
             min_score=0.0,
         )
         t0 = time.perf_counter()
-        response = graph_search(db, request)
+        if config is None:
+            response = graph_search(db, request)
+        else:
+            response = graph_search(db, request, config=config)
         elapsed = (time.perf_counter() - t0) * 1000.0
 
         per_query_ranked.append(
@@ -550,12 +558,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             live: Dict[str, Dict[str, Any]] = {}
             for condition in conditions:
                 use_graph = condition in ("C", "D")
+                # Score with THIS condition's RankingConfig, not the default one,
+                # so the weights printed in the ablation table are the weights
+                # that were actually applied.
                 result = _live_condition(
                     db,
                     dataset,
                     top_k=args.top_k,
                     graph_depth=args.graph_depth if use_graph else 0,
                     use_graph=use_graph,
+                    config=ablation_configs()[condition],
                 )
                 live[condition] = result
 
@@ -617,12 +629,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             # --- graph depth sweep ---------------------------------------
             if args.depth_sweep:
                 for depth in DEPTH_SWEEP:
+                    # depth 0 is condition A (vector only); every deeper depth is
+                    # condition D, matching how `run_condition` labels the row
+                    # below. The label and the weights therefore stay in step.
+                    sweep_cfg = (
+                        ablation_configs()["A"] if depth == 0 else ablation_configs()["D"]
+                    )
                     result = _live_condition(
                         db,
                         dataset,
                         top_k=args.top_k,
                         graph_depth=depth,
                         use_graph=depth > 0,
+                        config=sweep_cfg,
                     )
                     scorable_ids = {q.id for q in dataset.scorable}
                     idx = 0

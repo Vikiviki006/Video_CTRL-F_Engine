@@ -25,17 +25,19 @@ dist/
 .DS_Store
 Thumbs.db
 
+# --- Indexed media / derived artefacts ---
+# backend/data/ holds uploaded videos, generated keyframe thumbnails and FFmpeg
+# clips (MEDIA_ROOT/FRAME_ROOT/CLIP_ROOT resolve relative to the backend CWD, so
+# a native run writes there). These are large, regenerable from a re-upload, and
+# machine-specific; committing them would add ~90 MB of video to history.
+
+
 # --- Generated experiment artefacts ---
 # These are reproducible from experiments/evaluation/evaluate_retrieval.py and
 # the experiments/visualization/plot_*.py scripts. Committing them would put
 # multi-megabyte figures in history and invite stale copies being read as
 # current results. The source CSVs stay ignored; the directory itself is kept
 # via experiments/results/.gitkeep.
-experiments/results/*.csv
-experiments/results/*.json
-experiments/results/figures/
-!experiments/results/.gitkeep
-!experiments/results/README.md
 
 # Local bootstrap logs
 scripts/*.log

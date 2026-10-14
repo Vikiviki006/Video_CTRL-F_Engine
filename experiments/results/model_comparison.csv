@@ -1,0 +1,3 @@
+model,checkpoint,metrics_status,metrics_reason
+siglip,google/siglip-so400m-patch14-384,N/A,not evaluated in this run. The comparison requires both checkpoints to be indexed over identical frames and scored on the same queries; run the pipeline once per MODEL_NAME and merge the results.
+siglip2,google/siglip2-so400m-patch14-384,N/A,not evaluated in this run. The comparison requires both checkpoints to be indexed over identical frames and scored on the same queries; run the pipeline once per MODEL_NAME and merge the results.

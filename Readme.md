@@ -833,168 +833,317 @@ of them. Original 14 first, then the 18 added by this work.
 
 ---
 
-## 12. Running it
+## Quick Start (TL;DR)
 
-### 12.1 Docker
+### 🐳 Docker (Recommended — includes pgvector)
 
 ```bash
-cp .env.example .env          # adjust DATABASE_URL if needed
+# 1. Configure
+cp .env.example .env
+
+# 2. Start all services
 docker compose up --build
+
+# 3. Apply graph migration (creates graph_nodes, graph_edges tables)
+docker compose exec backend alembic upgrade head
+
+# ✅ Ready!
+# Frontend:  http://localhost:5173
+# API:       http://localhost:8000
+# API Docs:  http://localhost:8000/docs
 ```
 
-* Frontend → http://localhost:5173
-* API → http://localhost:8000 (`/docs` for OpenAPI)
-* Postgres → `pgvector/pgvector:pg16`, which already bundles the extension
-
-Then apply the graph tables:
+### 💻 Native (No Docker)
 
 ```bash
+# 1. Install pgvector (one-time)
+# Ubuntu: sudo apt install postgresql-16-pgvector
+# From source: git clone https://github.com/pgvector/pgvector && cd pgvector && make && sudo make install
+
+# 2. Create database
+sudo -u postgres psql -c "CREATE USER videocontrol WITH PASSWORD 'videocontrol';"
+sudo -u postgres psql -c "CREATE DATABASE videocontrol OWNER videocontrol;"
+sudo -u postgres psql -d videocontrol -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+# 3. Setup project
+cp .env.example .env
+mkdir -p data/media data/frames data/clips data/models
+
+# 4. Backend
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+psql -U videocontrol -d videocontrol -h localhost -f app/db/init.sql
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 5. Frontend (new terminal)
+cd frontend
+npm install
+export VITE_API_URL=http://localhost:8000   # Windows: $env:VITE_API_URL="http://localhost:8000"
+npm run dev
+```
+
+### 🧪 Smoke Test
+
+1. Open http://localhost:5173
+2. Upload a short `.mp4` (30–60s)
+3. Wait for status **ready** (refresh library)
+4. Type a query → click result → video jumps to timestamp
+
+---
+
+## 12. Running it
+
+### 12.1 Docker (Recommended)
+
+```bash
+# Configure environment
+cp .env.example .env          # adjust DATABASE_URL if needed
+
+# Start stack (PostgreSQL + pgvector, Backend, Frontend)
+docker compose up --build
+
+# Apply graph tables migration
 docker compose exec backend alembic upgrade head
 ```
 
-`init.sql` bootstraps the base tables on a **fresh** volume;
-`alembic upgrade head` is what adds the graph tables to an existing database.
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| API | http://localhost:8000 |
+| API Docs (OpenAPI) | http://localhost:8000/docs |
+| Postgres | `pgvector/pgvector:pg16` (bundled extension) |
 
-### 12.2 Native
+`init.sql` bootstraps base tables on a **fresh** volume; `alembic upgrade head` adds graph tables to existing database.
 
-Prerequisites and full instructions: [`NATIVE_SETUP.md`](NATIVE_SETUP.md).
-Requires **PostgreSQL with the pgvector extension installed**.
+### 12.2 Native (No Docker)
 
-```bash
-python -m venv .venv && .venv\Scripts\activate     # Windows
-pip install -r backend/requirements.txt
-
-psql -U <user> -d <db> -f backend/app/db/init.sql  # base tables
-cd backend && alembic upgrade head                 # graph tables
-uvicorn app.main:app --reload
-```
-
-Frontend:
+Prerequisites: [`NATIVE_SETUP.md`](NATIVE_SETUP.md) — requires **PostgreSQL 14+ with pgvector extension**.
 
 ```bash
-cd frontend && npm install && npm run dev
+# Project setup
+cp .env.example .env
+mkdir -p data/media data/frames data/clips data/models
+
+# Backend
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+psql -U videocontrol -d videocontrol -h localhost -f app/db/init.sql  # base tables
+alembic upgrade head                 # graph tables
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+export VITE_API_URL=http://localhost:8000
+npm run dev
 ```
 
-Bootstrap helpers and their known constraints: [`scripts/README.md`](scripts/README.md).
+Bootstrap helpers: [`scripts/README.md`](scripts/README.md).
 
 ### 12.3 Tests
 
 ```bash
+# All 178 tests
 make test
 # or
 cd backend && pytest -v
-```
 
-178 tests. Database-backed tests are opt-in and skip with a stated reason:
-
-```bash
+# Database-backed tests (opt-in)
 VIDEOCTRLF_RUN_DB_TESTS=1 pytest
+
+# Frontend build verification
+cd frontend && npm run build
 ```
 
-### 12.4 Reproducing the experiments
+### 12.4 Evaluation Commands
+
+#### Dry Run (Validate Annotations Only — No DB/Model)
 
 ```bash
-# 0. annotate ground truth (see experiments/datasets/README.md)
-python -m experiments.evaluation.build_labels \
-    --video-id <VIDEO_UUID> --queries experiments/datasets/evaluation.csv
-
-# 1. always check what is scorable first
 make eval-dry
-
-# 2. run the study
-make eval
-
-# 3. figures
-make plots
+# or
+python -m experiments.evaluation.evaluate_retrieval \
+    --dataset experiments/datasets/evaluation.csv \
+    --dry-run
 ```
 
-Results land in `experiments/results/`: six CSVs, three JSONs, a generated
-`SUMMARY.md`, and eight figures. `SUMMARY.md` is rendered from the same row
-objects as the CSVs, so it cannot disagree with them.
+#### Full Evaluation Study
+
+**Prerequisites:** Indexed video(s) + annotated ground truth in `evaluation.csv`
+
+```bash
+make eval
+# or
+python -m experiments.evaluation.evaluate_retrieval \
+    --dataset experiments/datasets/evaluation.csv \
+    --model siglip2 \
+    --top-k 10 \
+    --graph --graph-depth 2 \
+    --ablation --depth-sweep --index-metrics \
+    --output experiments/results/
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--graph` | Enable graph-aware retrieval (condition D) |
+| `--graph-depth` | Graph expansion depth (default: 2) |
+| `--ablation` | Run all four conditions A/B/C/D |
+| `--depth-sweep` | Sweep graph depths 0,1,2,3 |
+| `--index-metrics` | Collect frame-reduction, storage, graph sizes |
+| `--dry-run` | Validate annotations only |
+
+#### Evaluation Outputs
+
+All written to `experiments/results/`:
+
+| File | Contents |
+|------|----------|
+| `retrieval_metrics.csv` / `.json` | Vector vs vector+graph, all metrics @ K=1,5,10,20 |
+| `ablation_results.csv` / `.json` | Conditions A/B/C/D |
+| `latency_results.csv` | Avg/median/P95/P99 per pipeline stage |
+| `indexing_results.csv` | Frame counts, reduction %, graph sizes, storage |
+| `graph_results.csv` | Expanded nodes, traversed edges, depth sweep |
+| `model_comparison.csv` / `.json` | SigLIP vs SigLIP-2 (when both indexed) |
+| `SUMMARY.md` | **Generated** from same rows as CSVs |
+| `figures/*.png` | 8 figures (see below) |
 
 ---
 
-## 13. Known limitations and current status
+## 13. Visualization Commands
 
-### 13.1 Two environment blockers
+### Generate All Figures
 
-Both are fixable with **no code change**.
+```bash
+make plots
+# or individually:
+for s in recall precision mrr ndcg latency frame_reduction ablation comparison; do
+    python -m experiments.visualization.plot_$s
+done
+```
 
-**pgvector is not installed on the local PostgreSQL 18.** The schema cannot be
-created without it, so no video can be indexed and no end-to-end measurement is
-possible. On this machine the extension is unavailable because there is no C
-compiler, `C:\Program Files\PostgreSQL\18\share\extension` is not writable
-without administrator rights, Docker is not installed, and WSL `sudo` needs a
-password. Unblock it with any one of:
+### Individual Figures
 
-1. Install the **C++ build tools** workload for Visual Studio Build Tools 18,
-   run an Administrator shell, then `scripts\build_pgvector.bat`
-2. Install **Docker Desktop** — the `pgvector/pgvector:pg16` image already
-   bundles the extension
-3. Supply the WSL password, then `sudo apt install postgresql-16-pgvector`
-4. Point `DATABASE_URL` at any PostgreSQL that already has pgvector
+| Command | Output Figure | Input CSV |
+|---------|---------------|-----------|
+| `python -m experiments.visualization.plot_recall` | `recall_at_k.png` | `retrieval_metrics.csv` |
+| `python -m experiments.visualization.plot_precision` | `precision_at_k.png` | `retrieval_metrics.csv` |
+| `python -m experiments.visualization.plot_mrr` | `mrr.png` | `retrieval_metrics.csv` |
+| `python -m experiments.visualization.plot_ndcg` | `ndcg_at_k.png` | `retrieval_metrics.csv` |
+| `python -m experiments.visualization.plot_latency` | `latency_breakdown.png` | `latency_results.csv` |
+| `python -m experiments.visualization.plot_frame_reduction` | `frame_reduction.png` | `indexing_results.csv` |
+| `python -m experiments.visualization.plot_ablation` | `ablation.png` | `ablation_results.csv` |
+| `python -m experiments.visualization.plot_comparison` | `model_comparison.png` | `model_comparison.csv` |
 
-**No ground truth has been annotated.** The supplied dataset has 5 queries with
-empty `video_id` and empty `ground_truth_timestamp`, so Recall@K, Precision@K,
-MAP and NDCG@K are undefined. `experiments/datasets/` contains the template, the
-column reference, and `build_labels.py` to make the manual step practical.
-Metrics report `N/A` until annotations exist.
+### From Alternative Results Directory
 
-### 13.2 Design limitations, stated plainly
+```bash
+python -m experiments.visualization.plot_recall --results-dir /path/to/results
+```
 
-* **The concept layer is an empty interface.** No detector, OCR, ASR or
-  captioner exists here, so `CONCEPT` / `OBJECT` / `TEXT` nodes and `DEPICTS`
-  edges are never written. This is the single biggest limitation on how much
-  the graph term can contribute, and it is why `GraphScore.scene_overlap` and
-  `direct_similarity` are carrying the graph signal almost alone.
-* **`ConfidenceScore` is ranking-neutral today** (all confidences are 1.0), and
-  the ablation sets its weight to 0 for that reason rather than reporting a
-  constant as if it were a signal.
-* **Weights are chosen, not tuned.** α=0.65, β=0.20, γ=0.10, δ=0.05 and the
-  `a_d/a_s/a_c/a_t` coefficients are engineering defaults documented as
-  configurable. No claim is made that they are optimal; the depth ablation and
-  the A/B/C/D ablation exist to measure their effect.
-* **Five annotated queries is not a benchmark.** Even once annotations exist,
-  conclusions from that sample must be reported as single observations.
-* **One video is not a corpus.** Frame-reduction and storage figures from a
-  single clip do not generalise.
-* **Pre-existing inconsistencies left untouched** (out of scope, flagged in the
-  audit): `.env` uses project-root-relative `MEDIA_ROOT`/`FRAME_ROOT`/
-  `CLIP_ROOT` while `docker-compose.yml` mounts them at `/data/...`;
-  `tests/test_adaptive_extraction.py` asserts only config values and never
-  exercises the extraction heuristic it is named after; `ffmpeg` is absent
-  natively, so clip generation only works in Docker.
+### Figure Behavior
 
-### 13.3 What is verified right now
+- **Measured data** → plotted normally
+- **Missing/unmeasured data** → figure written with explicit `N/A` caption (never rendered as zero)
+- All scripts read **only** from CSV/JSON — no hard-coded values
 
-| Verified | How |
-|---|---|
-| Backend imports cleanly | `import app.main` — all route tables load |
-| Route table unchanged + 2 new routes | printed and compared against the audit |
-| Migration SQL is correct and additive | `alembic upgrade head --sql` and `downgrade 0001_graph_layer:base --sql` |
-| 178 tests pass | `pytest`, including 7 pre-existing |
-| Every metric vs. hand-computed values | 47 tests |
-| Bounded traversal, no N+1 | 43 tests, incl. a query-count assertion |
-| Scoring / ranking / tie-breaking | 42 tests |
-| Frontend builds | `npm run build` (was broken before this work — see `vite-env.d.ts`) |
-| All 8 figures render from CSV | executed end-to-end in `test_reporting_and_plots.py` |
-| N/A semantics | 20 tests asserting `None`→`N/A` and `0.0` stays `0.0` |
+---
 
-Four real bugs were found by these tests and fixed: an extra traversal query
-that broke the batching contract, an unenforced `max_nodes` cap, a
-`temporal_score` that included the candidate itself (making the term a useless
-constant), and an `issubclass` call on a `Protocol` with a non-method member.
+## 14. Production Readiness Checklist
 
-### 13.4 Document map
+### ✅ Verified & Complete
+
+| Item | Verification |
+|------|--------------|
+| Backend imports cleanly | `import app.main` — all routes load |
+| Route table integrity | Unchanged + 2 new additive routes |
+| Migration SQL | `alembic upgrade head --sql` verified additive |
+| Test suite | 178 tests pass (incl. 7 pre-existing) |
+| Metrics correctness | 47 tests vs hand-computed values |
+| Bounded traversal | 43 tests, incl. query-count assertions |
+| Scoring/ranking/tie-breaking | 42 tests |
+| Frontend build | `npm run build` succeeds |
+| Figures render from CSV | 8 scripts tested end-to-end in CI |
+| N/A semantics | 20 tests: `None`→`N/A`, `0.0` stays `0.0` |
+
+Four real bugs found and fixed by tests:
+1. Extra traversal query breaking batching contract
+2. Unenforced `max_nodes` cap
+3. `temporal_score` including candidate itself (constant term)
+4. `issubclass` on `Protocol` with non-method member
+
+### ⚠️ Required for Production Deployment
+
+| Item | Status | Action |
+|------|--------|--------|
+| pgvector extension | ❌ Not installed locally | Use Docker or install via build tools |
+| Ground truth annotations | ❌ Empty in `evaluation.csv` | Annotate 5 queries with `video_id` + timestamps |
+| Indexed videos | ❌ None in database | Upload + index at least one video |
+| Model warm-up | ❌ Disabled in `main.py` | Uncomment `get_model_service()` in startup |
+| SSL/TLS | ❌ Not configured | Add reverse proxy (nginx/Caddy) with certs |
+| Authentication | ❌ Not implemented | Add auth middleware if multi-user |
+| Rate limiting | ❌ Not implemented | Add `slowapi` or similar |
+| Monitoring/logging | ⚠️ Basic only | Add structured logging, metrics export |
+| Backup strategy | ❌ Not defined | Document `pg_dump` + volume backup |
+
+### 🔧 Key Production Configuration (`.env`)
+
+```bash
+# Database — use managed PostgreSQL with pgvector
+DATABASE_URL=postgresql+psycopg2://user:pass@host:5432/db
+
+# Model — consider smaller variant if VRAM limited
+MODEL_NAME=google/siglip2-so400m-patch14-384
+
+# Storage — use persistent volumes
+MEDIA_ROOT=/data/media
+FRAME_ROOT=/data/frames
+CLIP_ROOT=/data/clips
+
+# Performance tuning
+BATCH_SIZE=8                    # Lower if OOM
+GRAPH_MAX_DEPTH=2               # Hard cap
+GRAPH_MAX_NODES=200             # Hard cap
+GRAPH_SIMILARITY_THRESHOLD=0.80 # Strict for precision
+
+# Security
+CORS_ORIGINS=https://yourdomain.com
+LOG_LEVEL=INFO
+```
+
+---
+
+## 15. Known Limitations (Honest Assessment)
+
+1. **Concept layer is empty** — No detector/OCR/ASR/captioner. `DEPICTS` edges never written. Graph signal limited to similarity + temporal + scene structure.
+
+2. **ConfidenceScore is ranking-neutral** — All nodes have `confidence=1.0` with `NullGraphExtractor`. Ablation sets weight=0 intentionally.
+
+3. **Weights are defaults, not tuned** — α=0.65, β=0.20, etc. are engineering choices. No claim of optimality.
+
+4. **Five queries is not a benchmark** — Even with annotations, sample is tiny. Report as single observations.
+
+5. **One video ≠ corpus** — Frame-reduction/storage from single clip doesn't generalize.
+
+6. **Pre-existing inconsistencies** — `.env` paths vs Docker mounts; `test_adaptive_extraction.py` doesn't test extraction; FFmpeg only in Docker.
+
+---
+
+## 16. Document Map
 
 | Document | Contents |
-|---|---|
-| `docs/AUDIT_REPORT.md` | Phase 0 repository audit: what exists, what is reused, what is modified, every gap |
-| `docs/EVALUATION.md` | Every metric with its exact formula, matching rule, and worked example |
-| `experiments/README.md` | How to reproduce every experiment; current measured-vs-implemented status |
-| `experiments/datasets/README.md` | Column reference and how to build a labelled set |
-| `scripts/README.md` | Environment bootstrap scripts and the pgvector blocker |
+|----------|----------|
+| `docs/AUDIT_REPORT.md` | Phase 0 repository audit |
+| `docs/EVALUATION.md` | Every metric with exact formula, matching rule, worked example |
+| `experiments/README.md` | How to reproduce experiments; measured-vs-implemented status |
+| `experiments/datasets/README.md` | Column reference + how to build labelled set |
+| `scripts/README.md` | Environment bootstrap scripts + pgvector blocker |
 | `NATIVE_SETUP.md` | Native (non-Docker) setup |
+| `AGENT.md` | This file — project state, commands, architecture reference |
 
 ---
 

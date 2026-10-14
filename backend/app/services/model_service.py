@@ -11,6 +11,31 @@ logger = setup_logging()
 settings = get_settings()
 
 
+def _as_embedding_tensor(output):
+    """Return the embedding tensor from whatever ``get_*_features`` gave us.
+
+    transformers 4.x returned a plain ``Tensor`` of shape ``(batch, 1152)``.
+    transformers 5.x returns a ``BaseModelOutputWithPooling`` whose
+    ``pooler_output`` carries that same ``(batch, 1152)`` tensor.
+
+    ``requirements.txt`` pins ``transformers>=4.45.0`` with no upper bound, so
+    both shapes are reachable and the service has to accept either. Anything
+    else is a real error and is raised rather than silently coerced, because a
+    wrong-shaped tensor would only fail much later as a confusing pgvector
+    error.
+    """
+    if isinstance(output, torch.Tensor):
+        return output
+    pooler = getattr(output, "pooler_output", None)
+    if isinstance(pooler, torch.Tensor):
+        return pooler
+    raise TypeError(
+        "Unexpected return type from SigLIP get_*_features: "
+        f"{type(output).__name__}. Expected a torch.Tensor or an object with a "
+        "pooler_output tensor."
+    )
+
+
 class ModelService:
     """Singleton SigLIP-2 model service. Loaded once and reused."""
 
@@ -42,7 +67,7 @@ class ModelService:
             return np.array([])
         inputs = self.processor(images=images, return_tensors="pt").to(self.device)
         with torch.no_grad():
-            emb = self.model.get_image_features(**inputs)
+            emb = _as_embedding_tensor(self.model.get_image_features(**inputs))
             emb = torch.nn.functional.normalize(emb, p=2, dim=-1)
         return emb.cpu().numpy()
 
@@ -52,7 +77,7 @@ class ModelService:
             texts = [texts]
         inputs = self.processor(text=texts, return_tensors="pt", padding=True).to(self.device)
         with torch.no_grad():
-            emb = self.model.get_text_features(**inputs)
+            emb = _as_embedding_tensor(self.model.get_text_features(**inputs))
             emb = torch.nn.functional.normalize(emb, p=2, dim=-1)
         return emb.cpu().numpy()
 

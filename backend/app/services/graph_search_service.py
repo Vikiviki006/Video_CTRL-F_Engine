@@ -54,6 +54,14 @@ settings = get_settings()
 # selecting the embedding back so the vector stage can be re-scored locally.
 # Keeping one SQL text for both paths is what makes the ablation a controlled
 # comparison.
+# NOTE ON THE CAST SYNTAX
+# -----------------------
+# `CAST(:emb AS vector)`, not `:emb::vector`. SQLAlchemy's `text()` bind-param
+# regex is `(?<![:\w$]):(\w+)(?!:)`; the `(?!:)` lookahead deliberately skips
+# PostgreSQL's `::` cast operator, so in `:emb::vector` the parameter is never
+# bound and the literal `:emb` reaches the server as `syntax error at or near
+# ":"`. `CAST(...)` is equivalent SQL and binds correctly. The identical bug was
+# present in the frozen `search_service` baseline and is fixed there too.
 _CANDIDATE_SQL = """
     SELECT
         f.id AS frame_id,
@@ -61,16 +69,16 @@ _CANDIDATE_SQL = """
         v.original_filename AS video_name,
         f.timestamp_seconds,
         f.thumbnail_path,
-        1 - (f.embedding <=> :emb::vector) AS vector_score
+        1 - (f.embedding <=> CAST(:emb AS vector)) AS vector_score
     FROM video_frames f
     JOIN videos v ON v.id = f.video_id
     WHERE v.status = 'ready'
-      AND 1 - (f.embedding <=> :emb::vector) >= :min_score
+      AND 1 - (f.embedding <=> CAST(:emb AS vector)) >= :min_score
       AND f.embedding IS NOT NULL
 """
 
 _CANDIDATE_TAIL = """
-    ORDER BY f.embedding <=> :emb::vector ASC
+    ORDER BY f.embedding <=> CAST(:emb AS vector) ASC
     LIMIT :limit
 """
 
@@ -114,7 +122,18 @@ def _thumbnail_url(video_id: Any, thumbnail_path: str) -> str:
     and reconstructed from the video id and the basename, which is what the
     static mount under ``/media/frames`` expects.
     """
-    return f"/media/frames/{video_id}/{thumbnail_path.split('/')[-1]}"
+    return f"/media/frames/{video_id}/{_thumbnail_basename(thumbnail_path)}"
+
+
+def _thumbnail_basename(thumbnail_path: str) -> str:
+    """Return just the filename from a stored thumbnail path.
+
+    ``thumbnail_path`` is written with ``os.path.join``, so on Windows it holds
+    backslashes; splitting on ``/`` alone returns the whole path and yields a
+    malformed URL. Both separators are handled so Windows and Linux rows agree.
+    Mirrors the identically-named helper in ``search_service``.
+    """
+    return thumbnail_path.replace("\\", "/").rsplit("/", 1)[-1]
 
 
 def graph_search(

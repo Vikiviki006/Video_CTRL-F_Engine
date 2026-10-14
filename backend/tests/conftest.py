@@ -35,6 +35,16 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
+# ``tests/test_metrics.py`` and ``tests/test_reporting_and_plots.py`` import
+# ``experiments.*``, which lives in the *repo root*, not in ``backend/``. Running
+# pytest from ``backend/`` therefore could not resolve it, so the two evaluation
+# modules failed at collection with ModuleNotFoundError. Adding the repo root is
+# the same fix as above, one level up, and keeps the "runs identically from the
+# repo root and from backend/" promise this module already makes for ``app``.
+REPO_ROOT = BACKEND_ROOT.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 
 # ---------------------------------------------------------------------------
 # Settings isolation

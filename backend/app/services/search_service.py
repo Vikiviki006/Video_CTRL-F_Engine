@@ -49,6 +49,20 @@ def _temporal_group(results: List[dict], window: float) -> List[dict]:
     return final
 
 
+def _thumbnail_basename(thumbnail_path: str) -> str:
+    """Return just the filename from a stored thumbnail path.
+
+    ``video_frames.thumbnail_path`` is written with ``os.path.join``, so on
+    Windows it contains backslashes (``data\\frames\\<video>\\00000000.jpg``).
+    Splitting on ``/`` alone therefore returns the *entire* path, which produced
+    malformed URLs like
+    ``/media/frames/<video>/data\\frames\\<video>\\00000000.jpg`` and broke every
+    thumbnail in the UI on Windows. Rows written on Linux still contain ``/``, so
+    both separators are handled explicitly rather than assuming one platform.
+    """
+    return thumbnail_path.replace("\\", "/").rsplit("/", 1)[-1]
+
+
 def search(db: Session, request: SearchRequest) -> SearchResponse:
     start = time.perf_counter()
     logger.info(f"Search query received: '{request.query}' | top_k={request.top_k}")
@@ -64,6 +78,19 @@ def search(db: Session, request: SearchRequest) -> SearchResponse:
         "min_score": request.min_score,
     }
 
+    # NOTE ON THE CAST SYNTAX
+    # -----------------------
+    # This must be `CAST(:emb AS vector)`, not `:emb::vector`.
+    #
+    # SQLAlchemy's `text()` bind-parameter regex is `(?<![:\w$]):(\w+)(?!:)` -
+    # the trailing `(?!:)` lookahead exists precisely so PostgreSQL's `::` cast
+    # operator is not mistaken for a bind parameter. The consequence is that in
+    # `:emb::vector` the `:emb` group is rejected (it is followed by `:`) and is
+    # never bound, so the raw text `:emb` is sent to the server and PostgreSQL
+    # fails with `syntax error at or near ":"`.
+    #
+    # `CAST(:emb AS vector)` is exactly equivalent to `:emb::vector` in
+    # PostgreSQL and binds correctly, because `:emb` there is followed by `)`.
     sql = """
         SELECT
             f.id AS frame_id,
@@ -71,17 +98,17 @@ def search(db: Session, request: SearchRequest) -> SearchResponse:
             v.original_filename AS video_name,
             f.timestamp_seconds,
             f.thumbnail_path,
-            1 - (f.embedding <=> :emb::vector) AS score
+            1 - (f.embedding <=> CAST(:emb AS vector)) AS score
         FROM video_frames f
         JOIN videos v ON v.id = f.video_id
         WHERE v.status = 'ready'
-          AND 1 - (f.embedding <=> :emb::vector) >= :min_score
+          AND 1 - (f.embedding <=> CAST(:emb AS vector)) >= :min_score
     """
     if request.video_id:
         sql += " AND f.video_id = :video_id"
         params["video_id"] = str(request.video_id)
 
-    sql += " ORDER BY f.embedding <=> :emb::vector ASC LIMIT :limit"
+    sql += " ORDER BY f.embedding <=> CAST(:emb AS vector) ASC LIMIT :limit"
 
     rows = db.execute(text(sql), params).mappings().all()
 
@@ -90,7 +117,7 @@ def search(db: Session, request: SearchRequest) -> SearchResponse:
         thumb = row["thumbnail_path"]
         # Convert absolute path to URL path
         # Assuming FRAME_ROOT is mounted and served under /media/frames
-        thumb_url = f"/media/frames/{row['video_id']}/{thumb.split('/')[-1]}"
+        thumb_url = f"/media/frames/{row['video_id']}/{_thumbnail_basename(thumb)}"
         raw_results.append({
             "frame_id": row["frame_id"],
             "video_id": row["video_id"],

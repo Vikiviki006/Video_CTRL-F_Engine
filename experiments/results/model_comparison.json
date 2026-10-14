@@ -1,0 +1,34 @@
+{
+  "rows": [
+    {
+      "checkpoint": "google/siglip-so400m-patch14-384",
+      "metrics_reason": "not evaluated in this run. The comparison requires both checkpoints to be indexed over identical frames and scored on the same queries; run the pipeline once per MODEL_NAME and merge the results.",
+      "metrics_status": "N/A",
+      "model": "siglip"
+    },
+    {
+      "checkpoint": "google/siglip2-so400m-patch14-384",
+      "metrics_reason": "not evaluated in this run. The comparison requires both checkpoints to be indexed over identical frames and scored on the same queries; run the pipeline once per MODEL_NAME and merge the results.",
+      "metrics_status": "N/A",
+      "model": "siglip2"
+    }
+  ],
+  "run": {
+    "dataset": "experiments\\datasets\\evaluation.csv",
+    "depth_sweep": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "generated_at": "2026-10-14 05:59:55 UTC",
+    "graph_depth": 2,
+    "graph_enabled": true,
+    "metrics_status": "measured",
+    "model": "siglip2",
+    "model_checkpoint": "google/siglip2-so400m-patch14-384",
+    "num_queries": 12,
+    "num_scorable": 12,
+    "top_k": 10
+  }
+}

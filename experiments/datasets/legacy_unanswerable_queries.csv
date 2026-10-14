@@ -1,0 +1,6 @@
+id,query,video_id,ground_truth_timestamp,tolerance_seconds,relevant_ids,relevant_relationships,notes
+q1,person wearing a yellow jacket,,,2.0,,,"SUPERSEDED - see evaluation.csv. No indexed video contains this content."
+q2,person walking past a red car,,,2.0,,,"SUPERSEDED - see evaluation.csv. No indexed video contains this content."
+q3,speaker drawing a diagram on a whiteboard,,,2.0,,,"SUPERSEDED - see evaluation.csv. No indexed video contains this content."
+q4,a presentation slide showing a bar chart,,,2.0,,,"SUPERSEDED - see evaluation.csv. No indexed video contains this content."
+q5,person writing mathematical equations,,,2.0,,,"SUPERSEDED - see evaluation.csv. No indexed video contains this content."

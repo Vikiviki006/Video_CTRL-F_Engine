@@ -1,3 +1,22 @@
+"""Exploratory SigLIP-2 GPU smoke script. NOT part of the test suite.
+
+This file is named ``test_gpu.py`` and pytest therefore collected it, which
+caused two separate problems:
+
+1. It has **no test functions** - it is a straight-line script - so pytest
+   reported "no tests ran" but still executed the whole module at *collection*
+   time, loading the ~1.5 GB checkpoint into GPU memory on every suite run.
+2. It reads ``test.jpg`` via a **relative** path, so running the suite from the
+   repo root instead of ``backend/`` aborted collection with
+   ``FileNotFoundError: test.jpg``.
+
+The script's behaviour is unchanged and it can still be run directly:
+
+    cd backend && python test_gpu.py
+
+Collection is disabled from ``backend/conftest.py`` via ``collect_ignore``.
+"""
+
 import torch
 from transformers import AutoProcessor, SiglipModel
 
