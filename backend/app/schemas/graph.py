@@ -36,7 +36,16 @@ class GraphSearchRequest(BaseModel):
             "GRAPH_MAX_DEPTH in the environment."
         ),
     )
-    min_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    min_score: float = Field(
+        default=-1.0,
+        ge=-1.0,
+        le=1.0,
+        description=(
+            "Cosine-similarity floor for the candidate pool. Defaults to the "
+            "lowest possible cosine (no floor); see SearchRequest.min_score for "
+            "why a 0.0 default is wrong for SigLIP-2 embeddings."
+        ),
+    )
 
     @field_validator("query")
     @classmethod

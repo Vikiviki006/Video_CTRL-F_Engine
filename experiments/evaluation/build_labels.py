@@ -92,7 +92,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 # labelling aid is not influenced by the graph ranking it is
                 # meant to help evaluate.
                 graph_depth=0,
-                min_score=0.0,
+                min_score=-1.0,
             )
             try:
                 response = graph_search(db, request)
